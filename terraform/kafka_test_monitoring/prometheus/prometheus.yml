@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+scrape_configs:
+  - job_name: "kafka"
+    static_configs:
+      - targets:
+          - "<INTERNAL-IP-VM-1>:8080"
+          - "<INTERNAL-IP-VM-2>:8080"
+          - "<INTERNAL-IP-VM-3>:8080"
