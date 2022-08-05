@@ -1,6 +1,5 @@
-version: "3"
+version: '3'
 services:
-
   traefik:
     # Use the latest v2.3.x Traefik image available
     image: traefik:v2.3
