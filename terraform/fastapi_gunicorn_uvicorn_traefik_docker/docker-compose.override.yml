@@ -1,5 +1,4 @@
 services:
-
   backend:
     ports:
       - 80:80
