@@ -51,7 +51,7 @@ services:
       KAFKA_DEFAULT_REPLICATION_FACTOR: 3
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
       KAFKA_NUM_PARTITIONS: 3
-      EXTRA_ARGS: "-javaagent:/usr/share/jmx_exporter/jmx_prometheus_javaagent-0.15.0.jar=8080:/usr/share/jmx_exporter/kafka-2_0_0.yml"
+      EXTRA_ARGS: "-javaagent:/usr/share/jmx_exporter/jmx_prometheus_javaagent-0.16.1.jar=8080:/usr/share/jmx_exporter/kafka_broker.yml"
       KAFKA_HEAP_OPTS: "-XX:MaxRAMPercentage=70.0"
     volumes:
       - ./jmx_exporter:/usr/share/jmx_exporter
