@@ -21,7 +21,7 @@ cd /opt/apache_kafka_zookeeper_docker
 echo "Buscando e salvando os IPs internos de todas as máquinas"
 sudo curl http://metadata.google.internal/computeMetadata/v1/instance/name -H Metadata-Flavor:Google -O
 sudo gcloud compute instances list --filter="name ~ $(cat name)" --format='get(networkInterfaces[0].networkIP)' > kafka_internal_ip.txt
-sudo gcloud compute instances list --filter="name ~ $stargate-kafka-zookeeper-*" --flatten networkInterfaces[].accessConfigs[] --format="value(networkInterfaces.networkIP)" > kafka_instances_ips.txt
+sudo gcloud compute instances list --filter="name ~ $kafka-zookeeper-*" --flatten networkInterfaces[].accessConfigs[] --format="value(networkInterfaces.networkIP)" > kafka_instances_ips.txt
 
 echo "Armazenando os ips dinamicamente no arquivo .env"
 sudo chmod -R 777 get_ips_script.sh
