@@ -1,6 +1,6 @@
 provider "google" {
   project = var.project_id
-  credentials = "dp6-stargate-f2626d0fa52e.json"
+  credentials = "gcp_key_terraform.json"
   region      = var.region
 }
 

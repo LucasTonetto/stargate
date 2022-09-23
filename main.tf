@@ -52,7 +52,7 @@ resource "google_compute_instance_template" "kafka_zookeeper_instance_template" 
 
   tags = var.kafka_network_tags
 
-  metadata_startup_script = "${file("./kafka_zookeeper_vm_start_script.sh")}"
+  metadata_startup_script = "${file("./start-scripts/kafka_zookeeper_vm_start_script.sh")}"
 
   service_account {
     # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
@@ -107,7 +107,7 @@ resource "google_compute_instance_template" "fastapi_kafka_producer_instance_tem
 
   tags                    = var.fastapi_network_tags
 
-  metadata_startup_script = "${file("./fastapi_vm_startup_script.sh")}"
+  metadata_startup_script = "${file("./start-scripts/fastapi_vm_startup_script.sh")}"
 
   service_account {
     # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
@@ -246,7 +246,7 @@ resource "google_compute_instance" "kafka_test_and_monitoring_instance" {
 
   tags                    = var.kafka_test_monitoring_network_tags
 
-  metadata_startup_script = "${file("./kafka_test_and_monitoring_vm_start_script.sh")}"
+  metadata_startup_script = "${file("./start-scripts/kafka_test_and_monitoring_vm_start_script.sh")}"
 
   service_account {
     # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
