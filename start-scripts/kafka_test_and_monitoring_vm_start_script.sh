@@ -34,6 +34,6 @@ sudo docker run -p 3000:3000 -d --name=grafana --restart unless-stopped -e GF_AU
 
 echo "Apagando os arquivos baixados"
 sudo rm -rf /opt/stargate_folder.zip
-# sudo rm -rf /opt/get_ips_script.sh
-# sudo rm -rf /opt/kafka_*
-# sudo rm -rf /opt/name
+sudo rm -rf /opt/kafka_test_monitoring/get_ips_script.sh
+sudo rm -rf /opt/kafka_test_monitoring/kafka_*
+sudo rm -rf /opt/kafka_test_monitoring/name

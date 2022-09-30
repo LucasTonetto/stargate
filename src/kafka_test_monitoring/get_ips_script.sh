@@ -1,3 +1,4 @@
+echo "Buscando as informações do cluster de Kafka e configurando o Prometheus..."
 i=1
 echo "global:" >> /opt/kafka_test_monitoring/prometheus/prometheus.yml
 echo "  scrape_interval: 5s" >> /opt/kafka_test_monitoring/prometheus/prometheus.yml

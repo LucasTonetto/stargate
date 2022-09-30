@@ -1,61 +1,79 @@
+from importlib.resources import path
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import *
+from pyspark.sql.functions import col, from_json
 from pyspark.sql.types import *
+import os
+from dotenv import load_dotenv
+from google.cloud import storage
 
-if __name__ == "__main__":
+bucket_stargate = os.environ.get("BUCKET_NAME")
 
-    spark = SparkSession.builder.appName("Kafka + Spark Streaming + Google Big Query").getOrCreate()
-    spark.sparkContext.setLogLevel("WARN")
+storage_client = storage.Client() #from_service_account_json('service-account-file.json') 
+bucket = storage_client.bucket(bucket_stargate)
+blob = bucket.blob('.env')
+blob.download_to_filename('.env')
 
-    bigquery_table = "dataset-name.table-name"
-    spark.conf.set("temporaryGcsBucket","bucket-name")
+load_dotenv()
+bigquery_dataset = os.environ.get("BIGQUERY_DATASET")
+kafka_brokers_ips = os.environ.get("BOOTSTRAP_SERVERS")
+kafka_topic = os.environ.get("KAFKA_TOPIC_NAME")
+kafka_group = os.environ.get("KAFKA_CONSUMER_GROUP")
 
-    df = (
-        spark.readStream.format("kafka")
-        .option(
-            "kafka.bootstrap.servers",
-            "<broker-1-ip>:<broker-1-port>,<broker-2-ip>:<broker-2-port>,<broker-n-ip>:<broker-n-port>",
-        )
-        .option("subscribe", "kafka-topic")
-        .option("group.id", "spark-group")
-        .load()
+print('AQUI-----------------------')
+print(bigquery_dataset, bucket_stargate, kafka_brokers_ips, kafka_topic, kafka_group)
+
+spark = SparkSession.builder.appName("Spark Consumer Kafka - Stargate").getOrCreate()
+spark.sparkContext.setLogLevel("WARN")
+
+spark.conf.set("temporaryGcsBucket", bucket_stargate)
+
+df = (
+    spark.readStream.format("kafka")
+    .option(
+        "kafka.bootstrap.servers",
+        kafka_brokers_ips,
     )
-    df.printSchema()
-    df.selectExpr("CAST(key AS STRING) as key", "CAST(value AS STRING) as value")
-    
-    df2 = df.withColumn("key", df.key.cast("string")).withColumn(
-        "value", df.value.cast("string")
-    )
-    df2.printSchema()
+    .option("subscribe", kafka_topic)
+    .option("group.id", kafka_group)
+    .load()
+)
 
-    schema_bigquery = StructType([
-        StructField("hitType", StringType(), True),
-        StructField("page", StringType(), True),    
-        StructField("clientId", StringType(), True),
-        StructField("eventCategory", StringType(), True),
-        StructField("eventAction", StringType(), True),
-        StructField("eventLabel", StringType(), True),
-        StructField("utmSource", StringType(), True),
-        StructField("utmMedium", StringType(), True),
-        StructField("utmCampaign", StringType(), True),
-        StructField("timestampGTM", StringType(), True),
-    ])
+df.printSchema()
+df.selectExpr("CAST(key AS STRING) as key", "CAST(value AS STRING) as value")
 
-    dataframe = df2.withColumn("dataLayer", from_json(col("value"), schema_bigquery)).select(col('dataLayer.*'), col('key'), col("topic"), col('partition'), col('offset'), col('timestamp'))
+df2 = df.withColumn("key", df.key.cast("string")).withColumn(
+    "value", df.value.cast("string")
+)
+df2.printSchema()
 
-    query = (
-        dataframe.writeStream.format("console").outputMode("append")
-        .trigger(processingTime="60 second")
-        .start()
-    )
+schema_bigquery = StructType([
+    StructField("hitType", StringType(), True),
+    StructField("page", StringType(), True),    
+    StructField("clientId", StringType(), True),
+    StructField("eventCategory", StringType(), True),
+    StructField("eventAction", StringType(), True),
+    StructField("eventLabel", StringType(), True),
+    StructField("utmSource", StringType(), True),
+    StructField("utmMedium", StringType(), True),
+    StructField("utmCampaign", StringType(), True),
+    StructField("timestampGTM", StringType(), True),
+])
 
-    query = (
-        dataframe.writeStream 
-        .format("bigquery") 
-        .option("checkpointLocation", "gs://bucket-location/checkpoints/") 
-        .option("table", bigquery_table)
-        .trigger(processingTime="60 second")
-        .start()
-    )
+dataframe = df2.withColumn("dataLayer", from_json(col("value"), schema_bigquery)).select(col('dataLayer.*'), col('key'), col("topic"), col('partition'), col('offset'), col('timestamp'))
 
-    query.awaitTermination()
+query = (
+    dataframe.writeStream.format("console").outputMode("append")
+    .trigger(processingTime="60 second")
+    .start()
+)
+
+query = (
+    dataframe.writeStream 
+    .format("bigquery") 
+    .option("checkpointLocation", f"gs://{bucket_stargate}/checkpoints/") 
+    .option("table", kafka_topic)
+    .trigger(processingTime="60 second")
+    .start()
+)
+
+query.awaitTermination()

@@ -9,7 +9,14 @@ resource "google_storage_bucket" "bucket_stargate" {
   storage_class = "STANDARD"
   labels = {
     project     = "${var.project_name}"
+    stargate    = var.bucket_name
   }
+}
+
+resource "google_storage_bucket_object" "static_spark_start_script" {
+  name          = "spark_start_script.sh"
+  source        = "src/apache_spark_streaming/spark_start_script.sh"
+  bucket        = google_storage_bucket.bucket_stargate.name
 }
 
 data "archive_file" "zip_code" {
@@ -18,11 +25,30 @@ data "archive_file" "zip_code" {
   output_path   = "src/zip/stargate_folder.zip"
 }
 
+resource "google_compute_project_metadata" "project_metadata" {
+  metadata = {
+    PROJECT_ID = var.project_id
+    BIGQUERY_DATASET = var.bigquery_dataset
+    ALLOWED_HOSTS = "${var.allowed_hosts}"
+    BUCKET_NAME = var.bucket_name
+    KAFKA_TOPIC_NAME = var.kafka_topic_name
+    KAFKA_CONSUMER_GROUP = var.spark_stargate_group
+  }
+}
+
+
 resource "google_storage_bucket_object" "static_stargate_src" {
   name          = "stargate_folder.zip"
   source        = "./src/zip/stargate_folder.zip"
   bucket        = google_storage_bucket.bucket_stargate.name
   depends_on    = [data.archive_file.zip_code, google_storage_bucket.bucket_stargate]
+}
+
+resource "google_storage_bucket_object" "static_spark_job" {
+  name          = "main.py"
+  source        = "src/apache_spark_streaming/main.py"
+  content_type  = "text/x-python"
+  bucket        = google_storage_bucket.bucket_stargate.name
 }
 
 ######################################################
@@ -77,7 +103,12 @@ resource "google_compute_instance_group_manager" "kafka_zookeeper_instance_group
     instance_template = google_compute_instance_template.kafka_zookeeper_instance_template.id
   }
 
+  # stateful_disk {
+  #   device_name       = "${var.project_name}-${var.kafka_name_prefix}-boot"
+  # }
+
   depends_on          = [google_compute_instance_template.kafka_zookeeper_instance_template]
+
 }
 
 ######################################################
@@ -139,7 +170,7 @@ resource "google_compute_instance_group_manager" "fastapi_kafka_producer_instanc
   }
 
   auto_healing_policies {
-    health_check            = google_compute_http_health_check.healthcheck_lb.id
+    health_check            = google_compute_health_check.healthcheck-mig.id
     initial_delay_sec       = "300"
   }
 
@@ -149,13 +180,6 @@ resource "google_compute_instance_group_manager" "fastapi_kafka_producer_instanc
 ######################################################
 # DataProc e Máquinas de Apache Spark
 ######################################################
-
-resource "google_storage_bucket_object" "static_spark_job_src" {
-  name          = "main.py"
-  source        = "src/apache_spark_streaming/main.py"
-  content_type  = "text/x-python"
-  bucket        = google_storage_bucket.bucket_stargate.name
-}
 
 resource "google_dataproc_cluster" "stargate_cluster_stage" {
   name                          = "${var.project_name}-${var.spark_name_prefix}-cluster"
@@ -169,19 +193,20 @@ resource "google_dataproc_cluster" "stargate_cluster_stage" {
     staging_bucket = google_storage_bucket.bucket_stargate.name
 
     master_config {
-      num_instances             = var.spark_machine_number - 2
+      num_instances             = var.spark_machine_number >= 3 ? var.spark_machine_number - 2 : 1
       machine_type              = var.spark_machine_type
       disk_config {
         boot_disk_type          = var.spark_disk_type
         boot_disk_size_gb       = var.spark_disk_size
       }
     }
+
     endpoint_config {
         enable_http_port_access = "true"
     }
+
     worker_config {
-      num_instances             = var.spark_machine_number - 1
-      machine_type              = var.spark_machine_type
+      num_instances             = var.spark_machine_number >= 3 ? var.spark_machine_number - 1 : 0
       min_cpu_platform          = "Intel Skylake"
       disk_config {
         boot_disk_size_gb       = var.spark_disk_size
@@ -208,13 +233,18 @@ resource "google_dataproc_cluster" "stargate_cluster_stage" {
       service_account_scopes    = [
         "cloud-platform"
       ]
+
+      #metadata = {
+      #  BUCKET_NAME = var.bucket_name
+      #}
     }
 
     # You can define multiple initialization_action blocks
-    # initialization_action {
-    #   script      = "gs://dataproc-initialization-actions/stackdriver/stackdriver.sh"
-    #   timeout_sec = 500
-    # }
+    initialization_action {
+      script      = "gs://${var.bucket_name}/spark_start_script.sh"
+      timeout_sec = 500
+    }
+
   }
 }
 
@@ -326,7 +356,7 @@ resource "google_compute_firewall" "prometheus_9090_grafana_3000" {
 # Load Balancing FastAPI
 ######################################################
 
-resource "google_compute_backend_service" "fastapi_kafka_producer_backend_service" {
+resource "google_compute_backend_service" "fastapi-kafka-producer-backend-service" {
   name                            = "${var.load_balancing_name}-${var.project_name}-producer-backend-service"
   port_name                       = "http"
   session_affinity                = "NONE"
@@ -334,7 +364,7 @@ resource "google_compute_backend_service" "fastapi_kafka_producer_backend_servic
   timeout_sec                     = 600
 
   connection_draining_timeout_sec = "300"  
-  health_checks                   = [google_compute_http_health_check.healthcheck_lb.id]
+  health_checks                   = [google_compute_health_check.healthcheck-lb.id]
   load_balancing_scheme           = "EXTERNAL_MANAGED"
   locality_lb_policy              = "ROUND_ROBIN"
   
@@ -364,7 +394,7 @@ resource "google_compute_backend_service" "fastapi_kafka_producer_backend_servic
     max_utilization               = 0.8
   }
   
-  depends_on                      = [google_compute_instance_group_manager.fastapi_kafka_producer_instance_group_manager, google_compute_managed_ssl_certificate.fastapi_kafka_stargate_ssl]
+  depends_on                      = [google_compute_instance_group_manager.fastapi_kafka_producer_instance_group_manager, google_compute_managed_ssl_certificate.fastapi-kafka-stargate-ssl]
   
   log_config {
     enable      = true
@@ -373,87 +403,144 @@ resource "google_compute_backend_service" "fastapi_kafka_producer_backend_servic
 
 }
 
-resource "google_compute_global_forwarding_rule" "fastapi-kafka-frontend-service-load-balancer" {
-  name                  = "${var.load_balancing_name}-${var.project_name}-frontend-service-load-balancer"
-  ip_address            = google_compute_global_address.fastapi-kafka-stargate.address
+# Regra de direcionamento de tráfego
+resource "google_compute_global_forwarding_rule" "fastapi-kafka-frontend-lb" {
+  name                  = "${var.load_balancing_name}-${var.project_name}-frontend-lb"
+  ip_address            = google_compute_global_address.fastapi-kafka-stargate-address.address
   ip_protocol           = "TCP"
   port_range            = "443-443"
-  target                = google_compute_target_https_proxy.fastapi_kafka_stargate_https_proxy.self_link
+  target                = google_compute_target_https_proxy.fastapi-kafka-stargate-lb-target-proxy.self_link
   load_balancing_scheme = "EXTERNAL_MANAGED"
-  depends_on            = [ google_compute_target_https_proxy.fastapi_kafka_stargate_https_proxy, google_compute_global_address.fastapi-kafka-stargate]
+  depends_on            = [ google_compute_target_https_proxy.fastapi-kafka-stargate-lb-target-proxy, google_compute_global_address.fastapi-kafka-stargate-address]
 }
 
-resource "google_compute_target_https_proxy" "fastapi_kafka_stargate_https_proxy" {
-  name                  = "${var.load_balancing_name}-${var.project_name}-https-proxy"
-  url_map               = google_compute_url_map.fastapi-kafka-frontend-service-load-balancer.self_link
-  proxy_bind            = "false"
+resource "google_compute_global_forwarding_rule" "fastapi-kafka-frontend-lb-forwarding-rule" {
+  name                  = "${var.load_balancing_name}-${var.project_name}-frontend-lb-forwarding-rule"
+  ip_address            = google_compute_global_address.fastapi-kafka-stargate-address.address
+  ip_protocol           = "TCP"
+  port_range            = "80-80"
+  target                = google_compute_target_http_proxy.fastapi-kafka-stargate-frontend-lb-target-proxy.self_link
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+  depends_on            = [ google_compute_target_http_proxy.fastapi-kafka-stargate-frontend-lb-target-proxy, google_compute_global_address.fastapi-kafka-stargate-address]
+}
+
+resource "google_compute_target_https_proxy" "fastapi-kafka-stargate-lb-target-proxy" {
+  name                  = "${var.load_balancing_name}-${var.project_name}-lb-target-proxy"
+  url_map               = google_compute_url_map.fastapi-kafka-frontend-lb.id
+  proxy_bind            = false
   quic_override         = "NONE"
 
-  ssl_certificates      = [google_compute_managed_ssl_certificate.fastapi_kafka_stargate_ssl.id]
-  depends_on            = [google_compute_url_map.fastapi-kafka-frontend-service-load-balancer]    
+  ssl_certificates      = [google_compute_managed_ssl_certificate.fastapi-kafka-stargate-ssl.id]
+  depends_on            = [google_compute_url_map.fastapi-kafka-frontend-lb]    
 }
 
-resource "google_compute_url_map" "fastapi-kafka-frontend-service-load-balancer" {
-  name            = "${var.load_balancing_name}-${var.project_name}-load-balancer"
-  default_service = google_compute_backend_service.fastapi_kafka_producer_backend_service.id
-  depends_on      = [google_compute_backend_service.fastapi_kafka_producer_backend_service]
+resource "google_compute_target_http_proxy" "fastapi-kafka-stargate-frontend-lb-target-proxy" {
+  name                  = "${var.load_balancing_name}-${var.project_name}-frontend-lb-target-proxy"
+  url_map               = google_compute_url_map.fastapi-kafka-frontend-lb.id # Para aceitar somente navegação segura (HTTPS), muda pra google_compute_url_map.fastapi-kafka-frontend-lb-redirect.id
+  proxy_bind            = false
+
+  depends_on            = [google_compute_url_map.fastapi-kafka-frontend-lb] # Para aceitar somente navegação segura (HTTPS), muda pra [google_compute_url_map.fastapi-kafka-frontend-lb-redirect]
 }
+
+resource "google_compute_url_map" "fastapi-kafka-frontend-lb" {
+  name            = "${var.load_balancing_name}-${var.project_name}-lb"
+  default_service = google_compute_backend_service.fastapi-kafka-producer-backend-service.id
+  depends_on      = [google_compute_backend_service.fastapi-kafka-producer-backend-service]
+}
+
+## Descomente e altere as lnhas 424 e 428 para permitir somente navegação segura (HTTPS)
+
+# resource "google_compute_url_map" "fastapi-kafka-frontend-lb-redirect" {
+#   name            = "${var.load_balancing_name}-${var.project_name}-frontend-lb-redirect"
+#   description     = "Automatically generated HTTP to HTTPS redirect for ${var.load_balancing_name}-${var.project_name}-frontend-lb forwarding rule"
+
+#   default_url_redirect {
+#     https_redirect         = false
+#     redirect_response_code = "MOVED_PERMANENTLY_DEFAULT"
+#     strip_query            = false
+#   }
+# }
 
 ######################################################
 # Health Checks para grupos e load balancing
 ######################################################
 
-resource "google_compute_http_health_check" "healthcheck_lb" {
-  name                = "healthcheck-lb"
-  request_path        = "/"
+# Load Balancing Health Check - TCP
+resource "google_compute_health_check" "healthcheck-lb" {
+  name                = "${var.project_name}-healthcheck-lb"
   check_interval_sec  = 60
   timeout_sec         = 60
-  healthy_threshold   = "3"
-  unhealthy_threshold = "5"
-  port                = "80"
-}
+  healthy_threshold   = 3
+  unhealthy_threshold = 5
 
-resource "google_compute_firewall" "default-allow-ssh" {
-  name          = "default-allow-ssh"
-  description   = "Allow SSH from anywhere"
-
-  allow {
-    ports       = ["22"]
-    protocol    = "tcp"
+  log_config {
+    enable = true
   }
 
-  direction     = "INGRESS"
-  disabled      = "false"
-  network       = var.network
-  priority      = "65534"
-  source_ranges = ["0.0.0.0/0"]
+  tcp_health_check {
+    port         = "80"
+    proxy_header = "NONE"
+  }
 }
 
-resource "google_compute_firewall" "allow-health-check" {
-  allow {
-    ports       = ["80"]
-    protocol    = "tcp"
+resource "google_compute_health_check" "healthcheck-mig" {
+  name                = "${var.project_name}-healthcheck-mig"
+  check_interval_sec  = 60
+  timeout_sec         = 60
+  healthy_threshold   = 3
+  unhealthy_threshold = 5
+
+  log_config {
+    enable = true
   }
 
-  direction     = "INGRESS"
-  disabled      = "false"
-  name          = "allow-health-check"
-  network       = var.network
-  priority      = "1000"
-  project       = "dp6-stargate"
-  source_ranges = ["130.211.0.0/22", "35.191.0.0/16"]
-  target_tags   = ["allow-health-check"]
+  http_health_check {
+    port                = "80"
+    request_path        = "/"
+  }
 }
+
+# resource "google_compute_firewall" "default-allow-ssh" {
+#   name          = "default-allow-ssh"
+#   description   = "Allow SSH from anywhere"
+
+#   allow {
+#     ports       = ["22"]
+#     protocol    = "tcp"
+#   }
+
+#   direction     = "INGRESS"
+#   disabled      = "false"
+#   network       = var.network
+#   priority      = "65534"
+#   source_ranges = ["0.0.0.0/0"]
+# }
+
+# resource "google_compute_firewall" "allow-health-check" {
+#   allow {
+#     ports       = ["80"]
+#     protocol    = "tcp"
+#   }
+
+#   direction     = "INGRESS"
+#   disabled      = "false"
+#   name          = "allow-health-check"
+#   network       = var.network
+#   priority      = "1000"
+#   project       = "dp6-stargate"
+#   source_ranges = ["130.211.0.0/22", "35.191.0.0/16"]
+#   target_tags   = ["allow-health-check"]
+# }
 
 ######################################################
 # Certificação SSL
 ######################################################
 
-resource "google_compute_managed_ssl_certificate" "fastapi_kafka_stargate_ssl" {
-  name      = "${var.load_balancing_name}-${var.project_name}-ssl-"
+resource "google_compute_managed_ssl_certificate" "fastapi-kafka-stargate-ssl" {
+  name      = "${var.load_balancing_name}-${var.project_name}-ssl"
 
   managed {
-    domains = var.domain
+    domains = var.fastapi_domain
   }
 
   type      = "MANAGED"
@@ -463,7 +550,7 @@ resource "google_compute_managed_ssl_certificate" "fastapi_kafka_stargate_ssl" {
 # Reservar ip estático para Frontend do LB
 ######################################################
 
-resource "google_compute_global_address" "fastapi-kafka-stargate" {
+resource "google_compute_global_address" "fastapi-kafka-stargate-address" {
   address_type  = "EXTERNAL"
   ip_version    = "IPV4"
   name          = "${var.load_balancing_name}-${var.project_name}-address"
@@ -487,8 +574,86 @@ resource "google_dns_managed_zone" "fastapi-kafka-stargate-dns-com" {
 resource "google_dns_record_set" "fastapi-kafka-stargate-com" {
   managed_zone = google_dns_managed_zone.fastapi-kafka-stargate-dns-com.name
   name         = google_dns_managed_zone.fastapi-kafka-stargate-dns-com.dns_name
-  rrdatas      = [google_compute_global_address.fastapi-kafka-stargate.address]
+  rrdatas      = [google_compute_global_address.fastapi-kafka-stargate-address.address]
   ttl          = "5"
   type         = "A"
-  depends_on   = [google_dns_managed_zone.fastapi-kafka-stargate-dns-com, google_compute_global_address.fastapi-kafka-stargate]
+  depends_on   = [google_dns_managed_zone.fastapi-kafka-stargate-dns-com, google_compute_global_address.fastapi-kafka-stargate-address]
 }
+
+######################################################
+# Create BigQuery Dataset
+######################################################
+
+resource "google_bigquery_dataset" "dataset" {
+  dataset_id                  = var.bigquery_dataset
+  friendly_name               = var.bigquery_dataset
+  description                 = "Stargate dataset for realtime"
+  location                    = "US"
+
+  labels = {
+    stargate = var.bigquery_dataset
+  }
+
+  delete_contents_on_destroy = false
+
+  access {
+    role          = "OWNER"
+    user_by_email = var.service_account_email
+  }
+}
+
+######################################################
+# GCE Reservation - Commited Use Discount
+######################################################
+
+# resource "google_compute_reservation" "gce_fastapi_reservation" {
+#   name = "gce-${var.project_name}-${var.fastapi_name_prefix}-reservation"
+#   zone = var.zone
+
+#   specific_reservation {
+#     count = var.fastapi_machine_number
+#     instance_properties {
+#       min_cpu_platform = "Intel Cascade Lake"
+#       machine_type     = var.fastapi_machine_type
+#     }
+#   }
+# }
+
+# resource "google_compute_reservation" "gce_kafka_reservation" {
+#   name = "gce-${var.project_name}-${var.kafka_name_prefix}-reservation"
+#   zone = var.zone
+
+#   specific_reservation {
+#     count = var.fastapi_machine_number
+#     instance_properties {
+#       min_cpu_platform = "Intel Cascade Lake"
+#       machine_type     = var.kafka_machine_type
+#     }
+#   }
+# }
+
+# resource "google_compute_reservation" "gce_spark_reservation" {
+#   name = "gce-${var.project_name}-${var.spark_name_prefix}-reservation"
+#   zone = var.zone
+
+#   specific_reservation {
+#     count = var.fastapi_machine_number
+#     instance_properties {
+#       min_cpu_platform = "Intel Cascade Lake"
+#       machine_type     = var.spark_machine_type
+#     }
+#   }
+# }
+
+# resource "google_compute_reservation" "gce_kafka_test_monitoring_reservation" {
+#   name = "gce-${var.project_name}-${var.kafka_test_monitoring_name_prefix}-reservation"
+#   zone = var.zone
+
+#   specific_reservation {
+#     count = var.fastapi_machine_number
+#     instance_properties {
+#       min_cpu_platform = "Intel Cascade Lake"
+#       machine_type     = var.kafka_test_monitoring_machine_type
+#     }
+#   }
+# }

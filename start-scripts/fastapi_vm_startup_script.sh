@@ -22,18 +22,22 @@ echo "Buscando e salvando os IPs internos de todas as máquinas"
 sudo curl http://metadata.google.internal/computeMetadata/v1/instance/name -H Metadata-Flavor:Google -O
 sudo gcloud compute instances list --filter="name ~ $(cat name)" --format='get(networkInterfaces[0].networkIP)' > kafka_internal_ip.txt
 sudo gcloud compute instances list --filter="name ~ $kafka-zookeeper-*" --flatten networkInterfaces[].accessConfigs[] --format="value(networkInterfaces.networkIP)" > kafka_instances_ips.txt
+sudo gcloud compute project-info describe --format="value[separator='\n'](commonInstanceMetadata.items[].key,commonInstanceMetadata.items[].value)" > project_metadata.txt
 
-echo "Armazenando os ips dinamicamente no arquivo .env"
-sudo chmod -R 777 get_ips_script.sh
-./get_ips_script.sh
+echo "Armazenando os metadados do projeto e ips dos brokers de Kafka dinamicamente no arquivo .env"
+sudo chmod -R 777 get_ips_and_metadata_script.sh
+./get_ips_and_metadata_script.sh
 sudo mv /opt/fastapi_gunicorn_uvicorn_docker/app/.env.example /opt/fastapi_gunicorn_uvicorn_docker/app/.env
+sudo chmod -R 777 /opt/fastapi_gunicorn_uvicorn_docker/app/.env
+sudo gsutil cp /opt/fastapi_gunicorn_uvicorn_docker/app/.env gs://bucket_stargate
 
 echo "Startando o serviço da FastAPI"
-sudo docker build -t fastapi_kafka_producer .
-sudo docker run -d --restart unless-stopped --name uvicorn-gunicorn-fastapi_container -p 80:80 fastapi_kafka_producer
+sudo docker build -t fastapi_kafka_producer_image .
+sudo docker run -d --restart unless-stopped --name fastapi_kafka_producer_container -p 80:80 fastapi_kafka_producer_image
 
 echo "Apagando os arquivos baixados"
 sudo rm -rf /opt/stargate_folder.zip
-# sudo rm -rf /opt/get_ips_script.sh
-# sudo rm -rf /opt/kafka_*
-# sudo rm -rf /opt/name
+sudo rm -rf /opt/fastapi_gunicorn_uvicorn_docker/get_ips_and_metadata_script.sh
+sudo rm -rf /opt/fastapi_gunicorn_uvicorn_docker/kafka_*
+sudo rm -rf /opt/fastapi_gunicorn_uvicorn_docker/project_metadata.txt
+sudo rm -rf /opt/fastapi_gunicorn_uvicorn_docker/name

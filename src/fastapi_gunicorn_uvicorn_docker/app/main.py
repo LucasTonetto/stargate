@@ -49,7 +49,7 @@ def auth_request(token: str = Depends(oauth2_scheme)) -> bool:
 
 def verify_host(request: Request) -> bool:
 
-    allowed_hosts = json.loads(os.environ["ALLOWED_HOSTS"])
+    allowed_hosts = f'${json.loads(os.environ["ALLOWED_HOSTS"])}'
     authorized = (
         "origin" in request.headers.keys() and request.headers["origin"] in allowed_hosts
     )

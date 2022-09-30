@@ -41,6 +41,12 @@ variable "service_account_email" {
   default     = "testeterraformstargate@dp6-stargate.iam.gserviceaccount.com"
 }
 
+variable "allowed_hosts" {
+  description = "Insira aqui o domínio do site"
+  type = string
+  default     = "['www.google.com', 'https://www.google.com']"
+}
+
 ######################################################
 # Variáveis do cluster de FastAPI
 ######################################################
@@ -54,13 +60,17 @@ variable "fastapi_name_prefix" {
 variable "fastapi_machine_number" {
   description = "Insira a quantidade de máquinas do cluster da FastAPI"
   type        = number
-  default     = 3
+  default     = 1
 }
 
 variable "fastapi_machine_type" {
   description = "Insira o tipo de máquinas do cluster da FastAPI"
   type        = string
-  default     = "e2-standard-2"
+  #default     = "e2-micro"
+  #default     = "e2-small"
+  default     = "e2-medium"
+  #default     = "e2-standard-2"
+  #default     = "e2-standard-4"
 }
 
 variable "fastapi_disk_size" {
@@ -78,7 +88,7 @@ variable "fastapi_disk_type" {
 variable "fastapi_network_tags" {
   description = "Insira a lista de tags das regras de Firewall de cada máquina de Kafka"
   type        = list
-  default     = ["http-server", "https-server", "fastapi-8000"]
+  default     = ["http-server", "https-server", "fastapi-8000", "allow-health-check"]
 }
 
 ######################################################
@@ -94,19 +104,23 @@ variable "kafka_name_prefix" {
 variable "kafka_machine_number" {
   description = "Insira a quantidade de máquinas do cluster de Kafka"
   type        = number
-  default     = 3
+  default     = 1
 }
 
 variable "kafka_machine_type" {
   description = "Insira o tipo das máquinas do cluster de Kafka"
   type        = string
-  default     = "e2-standard-2"
+  #default     = "e2-micro"
+  #default     = "e2-small"
+  default     = "e2-medium"
+  #default     = "e2-standard-2"
+  #default     = "e2-standard-4"
 }
 
 variable "kafka_disk_size" {
   description = "Insira a capacidade de disco de cada máquina de Kafka"
   type        = number
-  default     = 100
+  default     = 10
 }
 
 variable "kafka_disk_type" {
@@ -121,6 +135,14 @@ variable "kafka_network_tags" {
   default     = ["http-server", "https-server", "kafka-broker-29092-jmx-8080"]
 }
 
+variable "kafka_topic_name" {
+  description = "Insira aqui o nome do tópico a ser usado no Kafka"
+  type        = string
+  default     = "stargate_v2.realtime"
+}
+
+
+
 ######################################################
 # Variáveis do DataProc pro Spark
 ######################################################
@@ -134,7 +156,7 @@ variable "spark_name_prefix" {
 variable "spark_machine_number" {
   description = "Insira a quantidade de máquinas do DataProc do Spark"
   type        = number
-  default     = 3
+  default     = 1
 }
 
 variable "spark_machine_type" {
@@ -155,6 +177,12 @@ variable "spark_disk_type" {
   default     = "pd-ssd"
 }
 
+variable "spark_stargate_group" {
+  description = "Insira o nome do Consumer Group que o Spark Consumer será inserido no Kafka"
+  type        = string
+  default     = "spark.stargate.group"
+}
+
 ######################################################
 # Variáveis da máquina de teste e monitoramento
 ######################################################
@@ -168,7 +196,10 @@ variable "kafka_test_monitoring_name_prefix" {
 variable "kafka_test_monitoring_machine_type" {
   description = "Insira o tipo da máquina de Teste e Monitoramento"
   type        = string
-  default     = "e2-standard-2"
+  #default     = "e2-micro"
+  #default     = "e2-small"
+  default     = "e2-medium"
+  #default     = "e2-standard-2"
 }
 
 variable "kafka_test_monitoring_disk_size" {
@@ -199,8 +230,8 @@ variable "load_balancing_name" {
   default     = "fastapi-kafka" 
 }
 
-variable "domain" {
-  description = "Insira o nome criado para o load balancing"
+variable "fastapi_domain" {
+  description = "Insira o domínio criado para a FastAPI"
   type        = list
   default     = ["fastapi-kafka-stargate-v2.com"] 
 }
@@ -243,4 +274,14 @@ variable "test_monitoring_firewall_rule_port" {
   description = "Insira as portas da regra de firewall do Prometheus e do Grafana"
   type        = list
   default     = ["9000", "3000"]
+}
+
+######################################################
+# Variáveis Big Query
+######################################################
+
+variable "bigquery_dataset" {
+  description = "Insira o nome do dataset a ser criado no Big Query"
+  type        = string
+  default     = "stargate_v2"
 }
