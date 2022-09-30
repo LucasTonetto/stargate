@@ -26,7 +26,7 @@ O Stargate possibilita a consolidação de dados no BigQuery de maneira mais rá
 
 5. Após ler, transformar e processar os dados, o Spark será o responsável por escrever os dados dentro do BigQuery.
 
-![Diagrama da estrutura](stargate_pics\diagram.png)
+![Diagrama da estrutura](stargate_pics/diagram.png)
 
 ## Principais propostas de valor
 
