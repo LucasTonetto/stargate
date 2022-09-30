@@ -46,6 +46,10 @@ O Stargate pode ser implementado em diferentes provedores de nuvem ou em ambient
 - Cloud Load Balancing
 - Cloud DNS
 
+## Workflow da implementação automatizada
+
+![Workflow da implementação automatizada](stargate_pics/terraform.png)
+
 ## 🚀 Instalação
 
 Clone o projeto do github para sua máquina local
@@ -60,14 +64,21 @@ git clone https://github.com/DP6/stargate.git
 
 1. [Google Cloud SDK](https://cloud.google.com/sdk/docs/install?hl=pt-br);
 2. [Terraform](https://www.terraform.io/);
-3. Habilitar o Compute Engine, Managed Instance Group, DataProc, Cloud Load Balancing, Cloud DNS, Firewall Rules (necessário ter um billing ativo), no GCP;
-4. Criar o arquivo **gcp_key_terraform.json** contendo a chave json de uma conta de serviço GCP com as permissões necessárias para as subidas dos serviços via terraform;
+3. Habilitar o Compute Engine, Managed Instance Group, DataProc, Cloud Load Balancing, Cloud DNS, Firewall Rules, Billing ativo na GCP;
+4. Uma chave json de uma conta de serviço GCP com as permissões necessárias para as subidas dos serviços via terraform.
 
 #### Passos
 
-1. Preencha corretamente o arquivo variables.tf com informações necessárias do projeto;
+1. Clonar o projeto em uma pasta local:
+```
+git clone https://github.com/DP6/stargate.git
+```
 
-2. Execute os seguintes comandos de Terraform:
+2. Adicione o arquivo gcp_key_terraform.json na pasta raiz do projeto contendo a chave json de uma conta de serviço GCP com as permissões necessárias;
+
+3. Preencha corretamente o arquivo variables.tf com informações necessárias do projeto;
+
+4. Execute os seguintes comandos de Terraform:
 ```
 terraform init
 terraform plan
