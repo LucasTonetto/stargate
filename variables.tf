@@ -3,13 +3,13 @@
 ######################################################
 
 variable "project_id" {
-  description = "Insira o ID do projeto no Google Cloud Platform"
+  description = "Insira o ID do projeto a ser implementado o Stargate no Google Cloud Platform"
   type        = string
-  default     = "dp6-stargate"
+  default     = "project-id-gcp"
 }
 
 variable "project_name" {
-  description = "Insira o ID do projeto no Google Cloud Platform"
+  description = "Insira o nome do projeto Stargate no Google Cloud Platform"
   type        = string
   default     = "stargate"
 }
@@ -29,6 +29,7 @@ variable "zone" {
 variable "bucket_name" {
   description = "Insira o nome do bucket"
   default     = "bucket_stargate"
+  # Ao alterar esse valor, alterar também na linha 32 do arquivo start-script/fastapi_vm_startup_script.sh
 }
 
 variable "network" {
@@ -37,14 +38,14 @@ variable "network" {
 }
 
 variable "service_account_email" {
-  description = "Insira o email de uma conta de serviço no formato service-account@project-id.iam.gserviceaccount.com"
-  default     = "testeterraformstargate@dp6-stargate.iam.gserviceaccount.com"
+  description = "Insira o email de uma conta de serviço no formato service-account-name@project-id.iam.gserviceaccount.com"
+  default     = "service-account@project-id.iam.gserviceaccount.com"
 }
 
 variable "allowed_hosts" {
-  description = "Insira aqui o domínio do site"
+  description = "Insira aqui o(s) domínio(s) da empresa"
   type = string
-  default     = "['www.google.com', 'https://www.google.com']"
+  default     = "['https://www.example.com', 'www.example.com']"
 }
 
 ######################################################
@@ -60,15 +61,15 @@ variable "fastapi_name_prefix" {
 variable "fastapi_machine_number" {
   description = "Insira a quantidade de máquinas do cluster da FastAPI"
   type        = number
-  default     = 1
+  default     = 3
 }
 
 variable "fastapi_machine_type" {
   description = "Insira o tipo de máquinas do cluster da FastAPI"
   type        = string
   #default     = "e2-micro"
-  #default     = "e2-small"
-  default     = "e2-medium"
+  default     = "e2-small"
+  #default     = "e2-medium"
   #default     = "e2-standard-2"
   #default     = "e2-standard-4"
 }
@@ -104,15 +105,15 @@ variable "kafka_name_prefix" {
 variable "kafka_machine_number" {
   description = "Insira a quantidade de máquinas do cluster de Kafka"
   type        = number
-  default     = 1
+  default     = 3
 }
 
 variable "kafka_machine_type" {
   description = "Insira o tipo das máquinas do cluster de Kafka"
   type        = string
   #default     = "e2-micro"
-  #default     = "e2-small"
-  default     = "e2-medium"
+  default     = "e2-small"
+  #default     = "e2-medium"
   #default     = "e2-standard-2"
   #default     = "e2-standard-4"
 }
@@ -129,19 +130,29 @@ variable "kafka_disk_type" {
   default     = "pd-ssd"
 }
 
+variable "kafka_log_retention_hours" {
+  description = "Por quanto tempo as mensagens ficarão armazenadas no Kafka"
+  type        = number
+  default     = 1
+}
+
 variable "kafka_network_tags" {
   description = "Insira a lista de tags das regras de Firewall de cada máquina de Kafka"
   type        = list
-  default     = ["http-server", "https-server", "kafka-broker-29092-jmx-8080"]
+  default     = ["http-server", "https-server", "ssh","kafka-broker-29092-jmx-8080"]
 }
 
-variable "kafka_topic_name" {
-  description = "Insira aqui o nome do tópico a ser usado no Kafka"
+variable "kafka_topic_app" {
+  description = "Insira aqui o nome do tópico para app a ser usado no Kafka"
   type        = string
-  default     = "stargate_v2.realtime"
+  default     = "stargate.app"
 }
 
-
+variable "kafka_topic_web" {
+  description = "Insira aqui o nome do tópico para web a ser usado no Kafka"
+  type        = string
+  default     = "stargate.web"
+}
 
 ######################################################
 # Variáveis do DataProc pro Spark
@@ -153,16 +164,23 @@ variable "spark_name_prefix" {
   default     = "spark"
 }
 
-variable "spark_machine_number" {
+variable "spark_master_machine_number" {
   description = "Insira a quantidade de máquinas do DataProc do Spark"
   type        = number
   default     = 1
 }
 
+variable "spark_worker_machine_number" {
+  description = "Insira a quantidade de máquinas do DataProc do Spark"
+  type        = number
+  default     = 2
+}
+
 variable "spark_machine_type" {
   description = "Insira o tipo das máquinas do DataProc do Spark"
   type        = string
-  default     = "n1-standard-2" 
+  default     = "n1-standard-2" # USD 201.43 - Mínimo PERMITIDO pela interface da GCP
+  #default     = "n1-standard-4" 
 }
 
 variable "spark_disk_size" {
@@ -197,8 +215,8 @@ variable "kafka_test_monitoring_machine_type" {
   description = "Insira o tipo da máquina de Teste e Monitoramento"
   type        = string
   #default     = "e2-micro"
-  #default     = "e2-small"
-  default     = "e2-medium"
+  default     = "e2-small"
+  #default     = "e2-medium"
   #default     = "e2-standard-2"
 }
 
@@ -231,9 +249,9 @@ variable "load_balancing_name" {
 }
 
 variable "fastapi_domain" {
-  description = "Insira o domínio criado para a FastAPI"
-  type        = list
-  default     = ["fastapi-kafka-stargate-v2.com"] 
+  description = "Insira o domínio criado para a FastAPI sem o .com no final"
+  type        = string
+  default     = "stargate-domain" 
 }
 
 ######################################################
@@ -273,7 +291,7 @@ variable "test_monitoring_firewall_rule_name" {
 variable "test_monitoring_firewall_rule_port" {
   description = "Insira as portas da regra de firewall do Prometheus e do Grafana"
   type        = list
-  default     = ["9000", "3000"]
+  default     = ["9090", "3000"]
 }
 
 ######################################################
@@ -281,7 +299,7 @@ variable "test_monitoring_firewall_rule_port" {
 ######################################################
 
 variable "bigquery_dataset" {
-  description = "Insira o nome do dataset a ser criado no Big Query"
+  description = "Insira o nome do dataset no Big Query"
   type        = string
-  default     = "stargate_v2"
+  default     = "stargate_realtime"
 }

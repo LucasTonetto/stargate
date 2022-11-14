@@ -29,6 +29,10 @@ read -ra ARRAY_VALUE <<< "$value"
 i=0
 for i in "${!ARRAY_KEY[@]}"
 do
-
+        if [[ "${ARRAY_KEY[$i]}" == "ALLOWED_HOSTS" ]]
+        then
+        printf "\n${ARRAY_KEY[$i]}='${ARRAY_VALUE[$i]//\'/\"}'" >> /opt/fastapi_gunicorn_uvicorn_docker/app/.env.example
+        else
         printf "\n${ARRAY_KEY[$i]}=${ARRAY_VALUE[$i]}" >> /opt/fastapi_gunicorn_uvicorn_docker/app/.env.example
+        fi
 done

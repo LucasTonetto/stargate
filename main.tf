@@ -17,6 +17,7 @@ resource "google_storage_bucket_object" "static_spark_start_script" {
   name          = "spark_start_script.sh"
   source        = "src/apache_spark_streaming/spark_start_script.sh"
   bucket        = google_storage_bucket.bucket_stargate.name
+  depends_on    = [google_storage_bucket.bucket_stargate]
 }
 
 data "archive_file" "zip_code" {
@@ -31,8 +32,10 @@ resource "google_compute_project_metadata" "project_metadata" {
     BIGQUERY_DATASET = var.bigquery_dataset
     ALLOWED_HOSTS = "${var.allowed_hosts}"
     BUCKET_NAME = var.bucket_name
-    KAFKA_TOPIC_NAME = var.kafka_topic_name
+    KAFKA_TOPIC_APP = var.kafka_topic_app
+    KAFKA_TOPIC_WEB = var.kafka_topic_web
     KAFKA_CONSUMER_GROUP = var.spark_stargate_group
+    KAFKA_LOG_RETENTION_MS = var.kafka_log_retention_hours * 3600000
   }
 }
 
@@ -49,6 +52,7 @@ resource "google_storage_bucket_object" "static_spark_job" {
   source        = "src/apache_spark_streaming/main.py"
   content_type  = "text/x-python"
   bucket        = google_storage_bucket.bucket_stargate.name
+  depends_on    = [google_storage_bucket.bucket_stargate]
 }
 
 ######################################################
@@ -107,7 +111,7 @@ resource "google_compute_instance_group_manager" "kafka_zookeeper_instance_group
   #   device_name       = "${var.project_name}-${var.kafka_name_prefix}-boot"
   # }
 
-  depends_on          = [google_compute_instance_template.kafka_zookeeper_instance_template]
+  depends_on          = [google_compute_instance_template.kafka_zookeeper_instance_template, google_compute_project_metadata.project_metadata]
 
 }
 
@@ -193,11 +197,12 @@ resource "google_dataproc_cluster" "stargate_cluster_stage" {
     staging_bucket = google_storage_bucket.bucket_stargate.name
 
     master_config {
-      num_instances             = var.spark_machine_number >= 3 ? var.spark_machine_number - 2 : 1
+      num_instances             = var.spark_master_machine_number
       machine_type              = var.spark_machine_type
       disk_config {
         boot_disk_type          = var.spark_disk_type
         boot_disk_size_gb       = var.spark_disk_size
+        num_local_ssds          = 1
       }
     }
 
@@ -206,9 +211,11 @@ resource "google_dataproc_cluster" "stargate_cluster_stage" {
     }
 
     worker_config {
-      num_instances             = var.spark_machine_number >= 3 ? var.spark_machine_number - 1 : 0
+      num_instances             = var.spark_worker_machine_number
+      machine_type              = var.spark_machine_type
       min_cpu_platform          = "Intel Skylake"
       disk_config {
+        boot_disk_type          = var.spark_disk_type
         boot_disk_size_gb       = var.spark_disk_size
         num_local_ssds          = 1
       }
@@ -220,7 +227,7 @@ resource "google_dataproc_cluster" "stargate_cluster_stage" {
 
     # Override or set some custom properties
     software_config {
-      image_version             = "2.0.35-debian10"
+      image_version             = "2.0.35-ubuntu18"
       override_properties       = {
         "dataproc:dataproc.allow.zero.workers" = "true"
       }
@@ -234,9 +241,6 @@ resource "google_dataproc_cluster" "stargate_cluster_stage" {
         "cloud-platform"
       ]
 
-      #metadata = {
-      #  BUCKET_NAME = var.bucket_name
-      #}
     }
 
     # You can define multiple initialization_action blocks
@@ -540,7 +544,7 @@ resource "google_compute_managed_ssl_certificate" "fastapi-kafka-stargate-ssl" {
   name      = "${var.load_balancing_name}-${var.project_name}-ssl"
 
   managed {
-    domains = var.fastapi_domain
+    domains = ["${var.fastapi_domain}.com"]
   }
 
   type      = "MANAGED"
@@ -562,12 +566,13 @@ resource "google_compute_global_address" "fastapi-kafka-stargate-address" {
 ######################################################
 
 resource "google_dns_managed_zone" "fastapi-kafka-stargate-dns-com" {
-  dns_name      = "${var.load_balancing_name}-${var.project_name}.com."
-  description   = "DNS zone for domain: ${var.load_balancing_name}-${var.project_name}.com."
+  dns_name      = "${var.fastapi_domain}.com."
+  description   = "DNS zone for domain: ${var.fastapi_domain}.com."
 
   force_destroy = "false"
-  name          = "${var.load_balancing_name}-${var.project_name}-com"
+  name          = "${var.fastapi_domain}-com"
   project       = var.project_id
+
   visibility    = "public"
 }
 
@@ -577,6 +582,7 @@ resource "google_dns_record_set" "fastapi-kafka-stargate-com" {
   rrdatas      = [google_compute_global_address.fastapi-kafka-stargate-address.address]
   ttl          = "5"
   type         = "A"
+
   depends_on   = [google_dns_managed_zone.fastapi-kafka-stargate-dns-com, google_compute_global_address.fastapi-kafka-stargate-address]
 }
 
@@ -584,23 +590,23 @@ resource "google_dns_record_set" "fastapi-kafka-stargate-com" {
 # Create BigQuery Dataset
 ######################################################
 
-resource "google_bigquery_dataset" "dataset" {
-  dataset_id                  = var.bigquery_dataset
-  friendly_name               = var.bigquery_dataset
-  description                 = "Stargate dataset for realtime"
-  location                    = "US"
+# resource "google_bigquery_dataset" "dataset" {
+#   dataset_id                  = var.bigquery_dataset
+#   friendly_name               = var.bigquery_dataset
+#   description                 = "Stargate dataset for realtime"
+#   location                    = "US"
 
-  labels = {
-    stargate = var.bigquery_dataset
-  }
+#   labels = {
+#     stargate = var.bigquery_dataset
+#   }
 
-  delete_contents_on_destroy = false
+#   delete_contents_on_destroy = false
 
-  access {
-    role          = "OWNER"
-    user_by_email = var.service_account_email
-  }
-}
+#   access {
+#     role          = "OWNER"
+#     user_by_email = var.service_account_email
+#   }
+# }
 
 ######################################################
 # GCE Reservation - Commited Use Discount

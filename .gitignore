@@ -1,5 +1,6 @@
 .github
 .terraform
+.vscode
 terraform.tfstate
 terraform.tfstate.backup
 gcp_key_terraform.json

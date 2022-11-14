@@ -1,4 +1,6 @@
-import logging, os, json
+import logging
+import os
+import json
 from hashlib import sha256
 
 from dotenv import load_dotenv
@@ -40,7 +42,8 @@ def auth_request(token: str = Depends(oauth2_scheme)) -> bool:
     authenticated = (
         token
         == sha256(
-            f'{os.environ["API_KEY"]}{os.environ["API_SECRET"]}'.encode("utf-8")
+            f'{os.environ["API_KEY"]}{os.environ["API_SECRET"]}'.encode(
+                "utf-8")
         ).hexdigest()
     )
 
@@ -49,9 +52,10 @@ def auth_request(token: str = Depends(oauth2_scheme)) -> bool:
 
 def verify_host(request: Request) -> bool:
 
-    allowed_hosts = json.loads(os.environ["ALLOWED_HOSTS"])
+    allowed_hosts = f'${json.loads(os.environ["ALLOWED_HOSTS"])}'
     authorized = (
-        "origin" in request.headers.keys() and request.headers["origin"] in allowed_hosts
+        "origin" in request.headers.keys(
+        ) and request.headers["origin"] in allowed_hosts
     )
 
     return authorized
@@ -80,19 +84,32 @@ async def startup_event():
         }
     )
 
-    client = AdminClient({"bootstrap.servers": os.environ["BOOTSTRAP_SERVERS"]})
-    topic = NewTopic(
-        os.environ["KAFKA_TOPIC_NAME"],
-        num_partitions=int(os.environ["KAFKA_TOPIC_PARTITIONS"]),
-        replication_factor=int(os.environ["KAFKA_TOPIC_REPLICAS"]),
-    )
-    try:
-        futures = client.create_topics([topic])
-        for topic_name, future in futures.items():
-            future.result()
-            logger.info(f"Created topics {topic_name}")
-    except Exception as e:
-        logger.warning(e)
+    client = AdminClient(
+        {"bootstrap.servers": os.environ["BOOTSTRAP_SERVERS"]})
+    topics = [
+        NewTopic(
+            os.environ["KAFKA_TOPIC_WEB"],
+            num_partitions=int(os.environ["KAFKA_TOPIC_PARTITIONS"]),
+            replication_factor=int(os.environ["KAFKA_TOPIC_REPLICAS"]),
+            config={
+                'log.retention.ms': os.environ["KAFKA_LOG_RETENTION_MS"]
+            }),
+        NewTopic(
+            os.environ["KAFKA_TOPIC_APP"],
+            num_partitions=int(os.environ["KAFKA_TOPIC_PARTITIONS"]),
+            replication_factor=int(os.environ["KAFKA_TOPIC_REPLICAS"]),
+            config={
+                'log.retention.ms': os.environ["KAFKA_LOG_RETENTION_MS"]
+            })    
+    ]
+    for topic in topics:
+        try:
+            futures = client.create_topics([topic])
+            for topic_name, future in futures.items():
+                future.result()
+                logger.info(f"Created topic {topic_name}")
+        except Exception as e:
+            logger.warning(e)
 
 
 class ProducerCallback:
@@ -111,16 +128,18 @@ class ProducerCallback:
       """
             )
 
+
 @app.get("/")
 def health_check_status():
-    return "FastAPI producer health is ok!"
+    return f'{os.environ["VM_NAME"]} health is ok!'
+
 
 @app.post(
-    "/api/producer/ga-datalayer-web",
+    "/api/web",
     status_code=201
     # , response_model=DataLayer
 )
-async def send_ga_dataLayer_from_web(
+async def send_events_from_web(
     dataLayer: DataLayer,
     authorized: bool = Depends(verify_host),
     authenticated: bool = Depends(auth_request),
@@ -133,27 +152,25 @@ async def send_ga_dataLayer_from_web(
         )
     try:
         result = await producer.produce(
-            topic=os.environ["KAFKA_TOPIC_NAME"],
+            topic=os.environ["KAFKA_TOPIC_WEB"],
             # key=dataLayer.hitType.lower().replace(r"s+", "-").encode("utf-8"), # uncomment to send a key value
             value=dataLayer.json(),
         )
     except KafkaException as ex:
         raise HTTPException(status_code=500, detail=ex.args[0].str())
 
+
 @app.get(
-    "/api/producer/ga-datalayer-mobile",
+    "/api/mobile",
     status_code=201
     # , response_model=DataLayer
 )
-async def send_ga_dataLayer_from_mobile(request: Request):
+async def send_events_from_mobile(request: Request):
     dataLayer = dict(request.query_params)
-    dataLayerType = type(dataLayer)
-    print(dataLayerType)
-    print(dataLayer)
-    
+
     try:
         result = await producer.produce(
-            topic=os.environ["KAFKA_TOPIC_NAME"],
+            topic=os.environ["KAFKA_TOPIC_APP"],
             # key=dataLayer.hitType.lower().replace(r"s+", "-").encode("utf-8"), # uncomment to send a key value
             value=json.dumps(dataLayer).encode('utf-8'),
         )
