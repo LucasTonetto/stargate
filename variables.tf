@@ -139,7 +139,7 @@ variable "kafka_log_retention_hours" {
 variable "kafka_network_tags" {
   description = "Insira a lista de tags das regras de Firewall de cada máquina de Kafka"
   type        = list
-  default     = ["http-server", "https-server", "ssh","kafka-broker-29092-jmx-8080"]
+  default     = ["http-server", "https-server", "default-allow-ssh","kafka-broker-29092-jmx-8080"]
 }
 
 variable "kafka_topic_app" {

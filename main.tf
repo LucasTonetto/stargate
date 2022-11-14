@@ -504,21 +504,21 @@ resource "google_compute_health_check" "healthcheck-mig" {
   }
 }
 
-# resource "google_compute_firewall" "default-allow-ssh" {
-#   name          = "default-allow-ssh"
-#   description   = "Allow SSH from anywhere"
+resource "google_compute_firewall" "default-allow-ssh" {
+  name          = "default-allow-ssh"
+  description   = "Allow SSH from anywhere"
 
-#   allow {
-#     ports       = ["22"]
-#     protocol    = "tcp"
-#   }
+  allow {
+    ports       = ["22"]
+    protocol    = "tcp"
+  }
 
-#   direction     = "INGRESS"
-#   disabled      = "false"
-#   network       = var.network
-#   priority      = "65534"
-#   source_ranges = ["0.0.0.0/0"]
-# }
+  direction     = "INGRESS"
+  disabled      = "false"
+  network       = var.network
+  priority      = "65534"
+  source_ranges = ["0.0.0.0/0"]
+}
 
 # resource "google_compute_firewall" "allow-health-check" {
 #   allow {
