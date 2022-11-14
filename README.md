@@ -65,7 +65,7 @@ git clone https://github.com/DP6/stargate.git
 1. [Google Cloud SDK](https://cloud.google.com/sdk/docs/install?hl=pt-br);
 2. [Terraform](https://www.terraform.io/);
 3. Habilitar o Compute Engine, Managed Instance Group, DataProc, Cloud Load Balancing, Cloud DNS, Firewall Rules, Billing ativo na GCP;
-4. Uma chave json de uma conta de serviço GCP com as permissões necessárias para as subidas dos serviços via terraform.
+4. Uma Key no formato json de um Service Account GCP com as permissões necessárias para as subidas dos serviços na GCP via terraform.
 
 #### Passos
 
@@ -74,16 +74,35 @@ git clone https://github.com/DP6/stargate.git
 git clone https://github.com/DP6/stargate.git
 ```
 
-2. Adicione o arquivo gcp_key_terraform.json na pasta raiz do projeto contendo a chave json de uma conta de serviço GCP com as permissões necessárias;
+2. Crie um Service Account com as permissões, crie uma Key, faça o download, renomeie-a para "gcp_key_terraform.json" e adicione o arquivo na pasta raiz do projeto;
 
 3. Preencha corretamente o arquivo variables.tf com informações necessárias do projeto;
 
-4. Execute os seguintes comandos de Terraform:
+4. Preencha os schemas web e app dentro dos arquivos src/fastapi_gunicorn_uvicorn_docker/app/schema.py e src/apache_spark_streaming/main.py;
+
+5. Execute os seguintes comandos de Terraform:
 ```
 terraform init
 terraform plan
 terraform apply
 ```
+
+6. Anote os outputs to terraform em algum local, você precisará deles!
+
+7. Conecte o Prometheus e Grafana para monitorar os brokers de Kafka e nodes do Zookeeper da seguinte forma:
+    1. Acesse o Prometheus de forma não segura pelo http://ip-externo:9090 da máquina stargate-kafka-test-and-monitoring-instance, acesse a aba Status -> Target e veja se as máquinas de Kafka estão com o State UP. Se sim, significa que o Prometheus está conectado corretamente com os brokers de Kafka.
+    2. Acesse o Grafana de forma não segura pelo http://ip-externo:3000 da máquina stargate-kafka-test-and-monitoring-instance, na página principal clique em DATA SOURCES;
+    3. Em "Add data source", selecione a opção Prometheus;
+    4. Em HTTP -> URL, digite http://ip-externo:9090 (referente à forma de acessar o Prometheus), role a página até o final e clique em Save & Test;
+    5. Após conectar o Prometheus e o Grafana, adicione o Dashboard criado localizado no projeto em src/kafka_test_monitoring/grafana/dashboard.json.
+
+8. Efetue as transformações necessárias entre as linhas 100 e 150 do arquivo no Spark em src/apache_spark_streaming/main.py;
+
+9. Submeta a job de Spark com o comando do output do Terraform;
+
+10. Realize os testes, seguindo as docs da FastAPI acessando o fastapi_url gerado pelo Terraform /docs;
+
+11. Verifique se chegou tudo corretamente no Big Query.
 
 ## Requirements
 
@@ -106,7 +125,6 @@ No modules.
 
 | Name | Type |
 |------|------|
-| [google_bigquery_dataset.dataset](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/bigquery_dataset) | resource |
 | [google_compute_backend_service.fastapi-kafka-producer-backend-service](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_backend_service) | resource |
 | [google_compute_firewall.fastapi_8000](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_firewall) | resource |
 | [google_compute_firewall.kafka_broker_29092_jmx_8080](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_firewall) | resource |
@@ -139,47 +157,50 @@ No modules.
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| <a name="input_allowed_hosts"></a> [allowed\_hosts](#input\_allowed\_hosts) | Insira aqui o domínio do site | `string` | `"['www.google.com', 'https://www.google.com']"` | yes |
-| <a name="input_bigquery_dataset"></a> [bigquery\_dataset](#input\_bigquery\_dataset) | Insira o nome do dataset a ser criado no Big Query | `string` | `"stargate_v2"` | yes |
-| <a name="input_bucket_name"></a> [bucket\_name](#input\_bucket\_name) | Insira o nome do bucket | `string` | `"bucket_stargate"` | yes |
-| <a name="input_fastapi_disk_size"></a> [fastapi\_disk\_size](#input\_fastapi\_disk\_size) | Insira a capacidade de disco de cada máquina da FastAPI | `number` | `10` | yes |
-| <a name="input_fastapi_disk_type"></a> [fastapi\_disk\_type](#input\_fastapi\_disk\_type) | Insira a capacidade de disco de cada máquina da FastAPI | `string` | `"pd-ssd"` | yes |
-| <a name="input_fastapi_domain"></a> [fastapi\_domain](#input\_fastapi\_domain) | Insira o domínio criado para a FastAPI | `list` | <pre>[<br>  "fastapi-kafka-stargate-v2.com"<br>]</pre> | yes |
-| <a name="input_fastapi_firewall_rule_name"></a> [fastapi\_firewall\_rule\_name](#input\_fastapi\_firewall\_rule\_name) | Insira o nome da tag da regra de firewall das portas da FastAPI | `string` | `"fastapi-8000"` | yes |
-| <a name="input_fastapi_firewall_rule_port"></a> [fastapi\_firewall\_rule\_port](#input\_fastapi\_firewall\_rule\_port) | Insira as portas da regra de firewall da FastAPI | `list` | <pre>[<br>  "8000"<br>]</pre> | yes |
-| <a name="input_fastapi_machine_number"></a> [fastapi\_machine\_number](#input\_fastapi\_machine\_number) | Insira a quantidade de máquinas do cluster da FastAPI | `number` | `1` | yes |
-| <a name="input_fastapi_machine_type"></a> [fastapi\_machine\_type](#input\_fastapi\_machine\_type) | Insira o tipo de máquinas do cluster da FastAPI | `string` | `"e2-medium"` | yes |
-| <a name="input_fastapi_name_prefix"></a> [fastapi\_name\_prefix](#input\_fastapi\_name\_prefix) | Insira o prefixo do nome das máquinas e do cluster da FastAPI | `string` | `"fastapi-kafka-producer"` | yes |
-| <a name="input_fastapi_network_tags"></a> [fastapi\_network\_tags](#input\_fastapi\_network\_tags) | Insira a lista de tags das regras de Firewall de cada máquina de Kafka | `list` | <pre>[<br>  "http-server",<br>  "https-server",<br>  "fastapi-8000",<br>  "allow-health-check"<br>]</pre> | yes |
+| <a name="input_allowed_hosts"></a> [allowed_hosts](#input\_allowed\_hosts) | Insira aqui o(s) domínio(s) da empresa | `string` | `"['https://www.example.com', 'www.example.com']"` | yes |
+| <a name="input_bigquery_dataset"></a> [bigquery\_dataset](#input\_bigquery\_dataset) | Insira o nome do dataset no Big Query | `string` | `"stargate_realtime"` | yes |
+| <a name="input_bucket_name"></a> [bucket\_name](#input\_bucket\_name) | Insira o nome do bucket | `string` | `"bucket_stargate"` | no |
+| <a name="input_fastapi_disk_size"></a> [fastapi\_disk\_size](#input\_fastapi\_disk\_size) | Insira a capacidade de disco de cada máquina da FastAPI | `number` | `10` | no |
+| <a name="input_fastapi_disk_type"></a> [fastapi\_disk\_type](#input\_fastapi\_disk\_type) | Insira a capacidade de disco de cada máquina da FastAPI | `string` | `"pd-ssd"` | no |
+| <a name="input_fastapi_domain"></a> [fastapi\_domain](#input\_fastapi\_domain) | Insira o domínio criado para a FastAPI sem o .com no final | `string` | `"stargate-domain"` | yes |
+| <a name="input_fastapi_firewall_rule_name"></a> [fastapi\_firewall\_rule\_name](#input\_fastapi\_firewall\_rule\_name) | Insira o nome da tag da regra de firewall das portas da FastAPI | `string` | `"fastapi-8000"` | no |
+| <a name="input_fastapi_firewall_rule_port"></a> [fastapi\_firewall\_rule\_port](#input\_fastapi\_firewall\_rule\_port) | Insira as portas da regra de firewall da FastAPI | `list` | <pre>[<br>  "8000"<br>]</pre> | no |
+| <a name="input_fastapi_machine_number"></a> [fastapi\_machine\_number](#input\_fastapi\_machine\_number) | Insira a quantidade de máquinas do cluster da FastAPI | `number` | `3` | yes |
+| <a name="input_fastapi_machine_type"></a> [fastapi\_machine\_type](#input\_fastapi\_machine\_type) | Insira o tipo de máquinas do cluster da FastAPI | `string` | `"e2-small"` | yes |
+| <a name="input_fastapi_name_prefix"></a> [fastapi\_name\_prefix](#input\_fastapi\_name\_prefix) | Insira o prefixo do nome das máquinas e do cluster da FastAPI | `string` | `"fastapi-kafka-producer"` | no |
+| <a name="input_fastapi_network_tags"></a> [fastapi\_network\_tags](#input\_fastapi\_network\_tags) | Insira a lista de tags das regras de Firewall de cada máquina de Kafka | `list` | <pre>[<br>  "http-server",<br>  "https-server",<br>  "fastapi-8000",<br>  "allow-health-check"<br>]</pre> | no |
 | <a name="input_kafka_disk_size"></a> [kafka\_disk\_size](#input\_kafka\_disk\_size) | Insira a capacidade de disco de cada máquina de Kafka | `number` | `10` | yes |
-| <a name="input_kafka_disk_type"></a> [kafka\_disk\_type](#input\_kafka\_disk\_type) | Insira a capacidade de disco de cada máquina de Kafka | `string` | `"pd-ssd"` | yes |
-| <a name="input_kafka_firewall_rule_name"></a> [kafka\_firewall\_rule\_name](#input\_kafka\_firewall\_rule\_name) | Insira o nome da tag da regra de firewall das portas de Kafka, JMX e Zookeeper | `string` | `"kafka-broker-29092-jmx-8080-zookeeper-2181"` | yes |
-| <a name="input_kafka_firewall_rule_port"></a> [kafka\_firewall\_rule\_port](#input\_kafka\_firewall\_rule\_port) | Insira as portas da regra de firewall de Kafka, JMX e Zookeeper | `list` | <pre>[<br>  "9092",<br>  "8080",<br>  "2181"<br>]</pre> | yes |
-| <a name="input_kafka_machine_number"></a> [kafka\_machine\_number](#input\_kafka\_machine\_number) | Insira a quantidade de máquinas do cluster de Kafka | `number` | `1` | yes |
-| <a name="input_kafka_machine_type"></a> [kafka\_machine\_type](#input\_kafka\_machine\_type) | Insira o tipo das máquinas do cluster de Kafka | `string` | `"e2-medium"` | yes |
-| <a name="input_kafka_name_prefix"></a> [kafka\_name\_prefix](#input\_kafka\_name\_prefix) | Insira o prefixo do nome das máquinas e do cluster de Kafka | `string` | `"kafka-zookeeper"` | yes |
-| <a name="input_kafka_network_tags"></a> [kafka\_network\_tags](#input\_kafka\_network\_tags) | Insira a lista de tags das regras de Firewall de cada máquina de Kafka | `list` | <pre>[<br>  "http-server",<br>  "https-server",<br>  "kafka-broker-29092-jmx-8080"<br>]</pre> | yes |
-| <a name="input_kafka_test_monitoring_disk_size"></a> [kafka\_test\_monitoring\_disk\_size](#input\_kafka\_test\_monitoring\_disk\_size) | Insira a capacidade de disco da máquina de Teste e Monitoramento | `number` | `10` | yes |
-| <a name="input_kafka_test_monitoring_disk_type"></a> [kafka\_test\_monitoring\_disk\_type](#input\_kafka\_test\_monitoring\_disk\_type) | Insira a capacidade de disco da máquina de Teste e Monitoramento | `string` | `"pd-standard"` | yes |
-| <a name="input_kafka_test_monitoring_machine_type"></a> [kafka\_test\_monitoring\_machine\_type](#input\_kafka\_test\_monitoring\_machine\_type) | Insira o tipo da máquina de Teste e Monitoramento | `string` | `"e2-medium"` | yes |
-| <a name="input_kafka_test_monitoring_name_prefix"></a> [kafka\_test\_monitoring\_name\_prefix](#input\_kafka\_test\_monitoring\_name\_prefix) | Insira o prefixo do nome da máquina de Teste e Monitoramento | `string` | `"kafka-test-and-monitoring"` | yes |
-| <a name="input_kafka_test_monitoring_network_tags"></a> [kafka\_test\_monitoring\_network\_tags](#input\_kafka\_test\_monitoring\_network\_tags) | Insira a lista de tags das regras de Firewall da máquina de Teste e Monitoramento | `list` | <pre>[<br>  "http-server",<br>  "https-server",<br>  "prometheus-9090-grafana-3000"<br>]</pre> | yes |
-| <a name="input_kafka_topic_name"></a> [kafka\_topic\_name](#input\_kafka\_topic\_name) | Insira aqui o nome do tópico a ser usado no Kafka | `string` | `"stargate_v2.realtime"` | yes |
-| <a name="input_load_balancing_name"></a> [load\_balancing\_name](#input\_load\_balancing\_name) | Insira o nome criado para o load balancing | `string` | `"fastapi-kafka"` | yes |
-| <a name="input_network"></a> [network](#input\_network) | Insira a network utilizada | `string` | `"default"` | yes |
-| <a name="input_project_id"></a> [project\_id](#input\_project\_id) | Insira o ID do projeto no Google Cloud Platform | `string` | `"dp6-stargate"` | yes |
-| <a name="input_project_name"></a> [project\_name](#input\_project\_name) | Insira o ID do projeto no Google Cloud Platform | `string` | `"stargate"` | yes |
-| <a name="input_region"></a> [region](#input\_region) | Insira a região do projeto | `string` | `"us-central1"` | yes |
-| <a name="input_service_account_email"></a> [service\_account\_email](#input\_service\_account\_email) | Insira o email de uma conta de serviço no formato service-account@project-id.iam.gserviceaccount.com | `string` | `"testeterraformstargate@dp6-stargate.iam.gserviceaccount.com"` | yes |
-| <a name="input_spark_disk_size"></a> [spark\_disk\_size](#input\_spark\_disk\_size) | Insira a capacidade de disco de cada máquina do Spark | `number` | `100` | yes |
-| <a name="input_spark_disk_type"></a> [spark\_disk\_type](#input\_spark\_disk\_type) | Insira a capacidade de disco de cada máquina do Spark | `string` | `"pd-ssd"` | yes |
-| <a name="input_spark_machine_number"></a> [spark\_machine\_number](#input\_spark\_machine\_number) | Insira a quantidade de máquinas do DataProc do Spark | `number` | `1` | yes |
+| <a name="input_kafka_disk_type"></a> [kafka\_disk\_type](#input\_kafka\_disk\_type) | Insira a capacidade de disco de cada máquina de Kafka | `string` | `"pd-ssd"` | no |
+| <a name="input_kafka_firewall_rule_name"></a> [kafka\_firewall\_rule\_name](#input\_kafka\_firewall\_rule\_name) | Insira o nome da tag da regra de firewall das portas de Kafka, JMX e Zookeeper | `string` | `"kafka-broker-29092-jmx-8080-zookeeper-2181"` | no |
+| <a name="input_kafka_firewall_rule_port"></a> [kafka\_firewall\_rule\_port](#input\_kafka\_firewall\_rule\_port) | Insira as portas da regra de firewall de Kafka, JMX e Zookeeper | `list` | <pre>[<br>  "9092",<br>  "8080",<br>  "2181"<br>]</pre> | no |
+| <a name="input_kafka_log_retention_hours"></a> [kafka\_log\_retention\_hours](#input\_kafka\_log\_retention\_hours) | Por quanto tempo as mensagens ficarão armazenadas no Kafka | `number` | `1` | no |
+| <a name="input_kafka_machine_number"></a> [kafka\_machine\_number](#input\_kafka\_machine\_number) | Insira a quantidade de máquinas do cluster de Kafka | `number` | `3` | yes |
+| <a name="input_kafka_machine_type"></a> [kafka\_machine\_type](#input\_kafka\_machine\_type) | Insira o tipo das máquinas do cluster de Kafka | `string` | `"e2-small"` | yes |
+| <a name="input_kafka_name_prefix"></a> [kafka\_name\_prefix](#input\_kafka\_name\_prefix) | Insira o prefixo do nome das máquinas e do cluster de Kafka | `string` | `"kafka-zookeeper"` | no |
+| <a name="input_kafka_network_tags"></a> [kafka\_network\_tags](#input\_kafka\_network\_tags) | Insira a lista de tags das regras de Firewall de cada máquina de Kafka | `list` | <pre>[<br>  "http-server",<br>  "https-server",<br>  "ssh",<br>  "kafka-broker-29092-jmx-8080"<br>]</pre> | no |
+| <a name="input_kafka_test_monitoring_disk_size"></a> [kafka\_test\_monitoring\_disk\_size](#input\_kafka\_test\_monitoring\_disk\_size) | Insira a capacidade de disco da máquina de Teste e Monitoramento | `number` | `10` | no |
+| <a name="input_kafka_test_monitoring_disk_type"></a> [kafka\_test\_monitoring\_disk\_type](#input\_kafka\_test\_monitoring\_disk\_type) | Insira a capacidade de disco da máquina de Teste e Monitoramento | `string` | `"pd-standard"` | no |
+| <a name="input_kafka_test_monitoring_machine_type"></a> [kafka\_test\_monitoring\_machine\_type](#input\_kafka\_test\_monitoring\_machine\_type) | Insira o tipo da máquina de Teste e Monitoramento | `string` | `"e2-small"` | no |
+| <a name="input_kafka_test_monitoring_name_prefix"></a> [kafka\_test\_monitoring\_name\_prefix](#input\_kafka\_test\_monitoring\_name\_prefix) | Insira o prefixo do nome da máquina de Teste e Monitoramento | `string` | `"kafka-test-and-monitoring"` | no |
+| <a name="input_kafka_test_monitoring_network_tags"></a> [kafka\_test\_monitoring\_network\_tags](#input\_kafka\_test\_monitoring\_network\_tags) | Insira a lista de tags das regras de Firewall da máquina de Teste e Monitoramento | `list` | <pre>[<br>  "http-server",<br>  "https-server",<br>  "prometheus-9090-grafana-3000"<br>]</pre> | no |
+| <a name="input_kafka_topic_app"></a> [kafka\_topic\_app](#input\_kafka\_topic\_app) | Insira aqui o nome do tópico para app a ser usado no Kafka | `string` | `"stargate.app"` | no |
+| <a name="input_kafka_topic_web"></a> [kafka\_topic\_web](#input\_kafka\_topic\_web) | Insira aqui o nome do tópico para web a ser usado no Kafka | `string` | `"stargate.web"` | no |
+| <a name="input_load_balancing_name"></a> [load\_balancing\_name](#input\_load\_balancing\_name) | Insira o nome criado para o load balancing | `string` | `"fastapi-kafka"` | no |
+| <a name="input_network"></a> [network](#input\_network) | Insira a network utilizada | `string` | `"default"` | no |
+| <a name="input_project_id"></a> [project\_id](#input\_project\_id) | Insira o ID do projeto a ser implementado o Stargate no Google Cloud Platform | `string` | `"project-id-gcp"` | yes |
+| <a name="input_project_name"></a> [project\_name](#input\_project\_name) | Insira o nome do projeto Stargate no Google Cloud Platform | `string` | `"stargate"` | no |
+| <a name="input_region"></a> [region](#input\_region) | Insira a região do projeto | `string` | `"us-central1"` | no |
+| <a name="input_service_account_email"></a> [service\_account\_email](#input\_service\_account\_email) | Insira o email de uma conta de serviço no formato service-account-name@project-id.iam.gserviceaccount.com | `string` | `"service-account@project-id.iam.gserviceaccount.com"` | yes |
+| <a name="input_spark_disk_size"></a> [spark\_disk\_size](#input\_spark\_disk\_size) | Insira a capacidade de disco de cada máquina do Spark | `number` | `100` | no |
+| <a name="input_spark_disk_type"></a> [spark\_disk\_type](#input\_spark\_disk\_type) | Insira a capacidade de disco de cada máquina do Spark | `string` | `"pd-ssd"` | no |
 | <a name="input_spark_machine_type"></a> [spark\_machine\_type](#input\_spark\_machine\_type) | Insira o tipo das máquinas do DataProc do Spark | `string` | `"n1-standard-2"` | yes |
-| <a name="input_spark_name_prefix"></a> [spark\_name\_prefix](#input\_spark\_name\_prefix) | Insira o prefixo do nome das máquinas e do cluster de Kafka | `string` | `"spark"` | yes |
-| <a name="input_spark_stargate_group"></a> [spark\_stargate\_group](#input\_spark\_stargate\_group) | Insira o nome do Consumer Group que o Spark Consumer será inserido no Kafka | `string` | `"spark.stargate.group"` | yes |
-| <a name="input_test_monitoring_firewall_rule_name"></a> [test\_monitoring\_firewall\_rule\_name](#input\_test\_monitoring\_firewall\_rule\_name) | Insira o nome da tag da regra de firewall das portas do Prometheus e Grafana | `string` | `"prometheus-9090-grafana-3000"` | yes |
-| <a name="input_test_monitoring_firewall_rule_port"></a> [test\_monitoring\_firewall\_rule\_port](#input\_test\_monitoring\_firewall\_rule\_port) | Insira as portas da regra de firewall do Prometheus e do Grafana | `list` | <pre>[<br>  "9000",<br>  "3000"<br>]</pre> | yes |
-| <a name="input_zone"></a> [zone](#input\_zone) | Insira a zona do projeto | `string` | `"us-central1-a"` | yes |
+| <a name="input_spark_master_machine_number"></a> [spark\_master\_machine\_number](#input\_spark\_master\_machine\_number) | Insira a quantidade de máquinas Masters do DataProc do Spark | `number` | `1` | no |
+| <a name="input_spark_name_prefix"></a> [spark\_name\_prefix](#input\_spark\_name\_prefix) | Insira o prefixo do nome das máquinas e do cluster de Kafka | `string` | `"spark"` | no |
+| <a name="input_spark_stargate_group"></a> [spark\_stargate\_group](#input\_spark\_stargate\_group) | Insira o nome do Consumer Group que o Spark Consumer será inserido no Kafka | `string` | `"spark.stargate.group"` | no |
+| <a name="input_spark_worker_machine_number"></a> [spark\_worker\_machine\_number](#input\_spark\_worker\_machine\_number) | Insira a quantidade de máquinas Worker do DataProc do Spark | `number` | `2` | no |
+| <a name="input_test_monitoring_firewall_rule_name"></a> [test\_monitoring\_firewall\_rule\_name](#input\_test\_monitoring\_firewall\_rule\_name) | Insira o nome da tag da regra de firewall das portas do Prometheus e Grafana | `string` | `"prometheus-9090-grafana-3000"` | no |
+| <a name="input_test_monitoring_firewall_rule_port"></a> [test\_monitoring\_firewall\_rule\_port](#input\_test\_monitoring\_firewall\_rule\_port) | Insira as portas da regra de firewall do Prometheus e do Grafana | `list` | <pre>[<br>  "9090",<br>  "3000"<br>]</pre> | no |
+| <a name="input_zone"></a> [zone](#input\_zone) | Insira a zona do projeto | `string` | `"us-central1-a"` | no |
 
 ## Outputs
 

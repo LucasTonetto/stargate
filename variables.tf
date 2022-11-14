@@ -165,13 +165,13 @@ variable "spark_name_prefix" {
 }
 
 variable "spark_master_machine_number" {
-  description = "Insira a quantidade de máquinas do DataProc do Spark"
+  description = "Insira a quantidade de máquinas Master do DataProc do Spark"
   type        = number
   default     = 1
 }
 
 variable "spark_worker_machine_number" {
-  description = "Insira a quantidade de máquinas do DataProc do Spark"
+  description = "Insira a quantidade de máquinas Worker do DataProc do Spark"
   type        = number
   default     = 2
 }
