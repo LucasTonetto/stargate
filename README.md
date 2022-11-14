@@ -78,7 +78,7 @@ git clone https://github.com/DP6/stargate.git
 
 3. Preencha corretamente o arquivo variables.tf com informações necessárias do projeto;
 
-4. Preencha os schemas web e app dentro dos arquivos src/fastapi_gunicorn_uvicorn_docker/app/schema.py e src/apache_spark_streaming/main.py;
+4. Preencha os schemas web e app dentro dos arquivos src/fastapi_gunicorn_uvicorn_docker/app/schema.py e src/apache_spark_streaming/main.py. Esse site pode ajudar: https://jsontopydantic.com/ onde só é necessário colar uma requisição em json (é possível baixar um json de um registro do Big Query);
 
 5. Execute os seguintes comandos de Terraform:
 ```
