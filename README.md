@@ -50,15 +50,7 @@ O Stargate pode ser implementado em diferentes provedores de nuvem ou em ambient
 
 ![Workflow da implementação automatizada](stargate_pics/terraform.png)
 
-## 🚀 Instalação
-
-Clone o projeto do github para sua máquina local
-
-```console
-git clone https://github.com/DP6/stargate.git
-```
-
-### Instalação GCP - via Terraform
+### 🚀 Instalação GCP - via Terraform
 
 #### Pré-requisitos
 
