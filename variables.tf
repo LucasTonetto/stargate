@@ -5,7 +5,7 @@
 variable "project_id" {
   description = "Insira o ID do projeto a ser implementado o Stargate no Google Cloud Platform"
   type        = string
-  default     = "raiadrogasil-280519"
+  default     = "project-id-gcp"
 }
 
 variable "project_name" {
@@ -133,7 +133,7 @@ variable "kafka_log_retention_hours" {
 variable "kafka_network_tags" {
   description = "Insira a lista de tags das regras de Firewall de cada máquina de Kafka"
   type        = list
-  default     = ["http-server", "https-server", "ssh","kafka-broker-29092-jmx-8080"]
+  default     = ["http-server", "https-server", "kafka-broker-29092-jmx-8080"]
 }
 
 variable "kafka_topic_app" {
@@ -248,7 +248,7 @@ variable "load_balancing_name" {
 variable "fastapi_domain" {
   description = "Insira o domínio criado para a FastAPI sem o .com no final"
   type        = string
-  default     = "stargate-rd" 
+  default     = "stargate-domain" 
 }
 
 ######################################################
@@ -298,5 +298,5 @@ variable "test_monitoring_firewall_rule_port" {
 variable "bigquery_dataset" {
   description = "Insira o nome do dataset no Big Query"
   type        = string
-  default     = "data_realtime"
+  default     = "realtime"
 }

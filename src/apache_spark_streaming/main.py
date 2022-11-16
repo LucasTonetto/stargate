@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from google.cloud import storage
 
 if __name__ == "__main__":
-    bucket_stargate = os.environ.get("BUCKET_NAME")
+    bucket_stargate = os.environ.get("STARGATE_BUCKET_NAME")
 
     # from_service_account_json('service-account-file.json')
     storage_client = storage.Client()
