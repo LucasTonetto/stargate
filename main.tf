@@ -3,13 +3,13 @@
 ######################################################
 
 resource "google_storage_bucket" "bucket_stargate" {
-  name          = var.bucket_name
+  name          = "bucket_stargate_${var.project_id}"
   location      = var.region
   force_destroy = true
   storage_class = "STANDARD"
   labels = {
     project     = "${var.project_name}"
-    stargate    = var.bucket_name
+    stargate    = "bucket_stargate"
   }
 }
 
@@ -31,7 +31,7 @@ resource "google_compute_project_metadata" "project_metadata" {
     PROJECT_ID = var.project_id
     BIGQUERY_DATASET = var.bigquery_dataset
     ALLOWED_HOSTS = "${var.allowed_hosts}"
-    BUCKET_NAME = var.bucket_name
+    STARGATE_BUCKET_NAME = "bucket_stargate_${var.project_id}"
     KAFKA_TOPIC_APP = var.kafka_topic_app
     KAFKA_TOPIC_WEB = var.kafka_topic_web
     KAFKA_CONSUMER_GROUP = var.spark_stargate_group
@@ -245,7 +245,7 @@ resource "google_dataproc_cluster" "stargate_cluster_stage" {
 
     # You can define multiple initialization_action blocks
     initialization_action {
-      script      = "gs://${var.bucket_name}/spark_start_script.sh"
+      script      = "gs://bucket_stargate_${var.project_id}/spark_start_script.sh"
       timeout_sec = 500
     }
 

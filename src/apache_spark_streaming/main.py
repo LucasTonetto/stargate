@@ -37,7 +37,6 @@ if __name__ == "__main__":
 
     spark.sparkContext.setLogLevel("WARN")
     spark.conf.set("temporaryGcsBucket", bucket_stargate)
-    spark.conf.set('spark.sql.session.timeZone', 'America/Sao_Paulo')
 
     df = (
         spark.readStream.format("kafka")
@@ -155,20 +154,36 @@ if __name__ == "__main__":
         today_date = spark.sql("select date_format(current_timestamp(),'yyyyMMdd') as today_date").collect()[0].__getitem__('today_date')
 
         dataframe \
-        .filter((col("device") == "app")) \
+        .filter((col("device") == "app") & (col("bandeira") == "drogasil")) \
         .write \
         .format('bigquery') \
         .mode('append') \
-        .option('table', f"{bigquery_dataset}.app_{today_date}") \
+        .option('table', f"{bigquery_dataset}.drogasil_app_teste_{today_date}") \
         .save()
 
         dataframe \
-        .filter((col("device") == "web")) \
+        .filter((col("device") == "web") & (col("bandeira") == "drogasil")) \
         .write \
         .format('bigquery') \
         .mode('append') \
-        .option('table', f"{bigquery_dataset}.web_{today_date}") \
+        .option('table', f"{bigquery_dataset}.drogasil_web_teste_{today_date}") \
         .save()   
+
+        dataframe \
+        .filter((col("device") == "app") & (col("bandeira") == "drogaraia")) \
+        .write \
+        .format('bigquery') \
+        .mode('append') \
+        .option('table', f"{bigquery_dataset}.drogaraia_app_teste_{today_date}") \
+        .save()   
+
+        dataframe \
+        .filter((col("device") == "web") & (col("bandeira") == "drogaraia")) \
+        .write \
+        .format('bigquery') \
+        .mode('append') \
+        .option('table', f"{bigquery_dataset}.drogaraia_web_teste_{today_date}") \
+        .save()
 
         dataframe.unpersist()           
   

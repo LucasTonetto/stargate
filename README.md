@@ -82,11 +82,11 @@ terraform apply
 6. Anote os outputs to terraform em algum local, você precisará deles!
 
 7. Conecte o Prometheus e Grafana para monitorar os brokers de Kafka e nodes do Zookeeper da seguinte forma:
-    1. Acesse o Prometheus de forma não segura pelo http://ip-externo:9090 da máquina stargate-kafka-test-and-monitoring-instance, acesse a aba Status -> Target e veja se as máquinas de Kafka estão com o State UP. Se sim, significa que o Prometheus está conectado corretamente com os brokers de Kafka.
-    2. Acesse o Grafana de forma não segura pelo http://ip-externo:3000 da máquina stargate-kafka-test-and-monitoring-instance, na página principal clique em DATA SOURCES;
+    1. Acesse o Prometheus de forma não segura pelo outuput do Terraform prometheus_url ou por http://ip-externo:9090 da máquina stargate-kafka-test-and-monitoring-instance, acesse a aba Status -> Target e veja se as máquinas de Kafka estão com o State UP. Se sim, significa que o Prometheus está conectado corretamente com os brokers de Kafka.
+    2. Acesse o Grafana de forma não segura pelo outuput do Terraform prometheus_url ou pelo http://ip-externo:3000 da máquina stargate-kafka-test-and-monitoring-instance, na página principal clique em DATA SOURCES;
     3. Em "Add data source", selecione a opção Prometheus;
     4. Em HTTP -> URL, digite http://ip-externo:9090 (referente à forma de acessar o Prometheus), role a página até o final e clique em Save & Test;
-    5. Após conectar o Prometheus e o Grafana, adicione o Dashboard criado localizado no projeto em src/kafka_test_monitoring/grafana/dashboard.json.
+    5. Após conectar o Prometheus e o Grafana, adicione o Dashboard criado localizado no projeto em src/kafka_test_monitoring/grafana/dashboard.json. No menu lateral, selecione o Icone com 4 quadrados (Dashboard), clique na opção + Import, clique em Upload JSON File, selecione o arquivo e depois Load.
 
 8. Efetue as transformações necessárias entre as linhas 100 e 150 do arquivo no Spark em src/apache_spark_streaming/main.py;
 

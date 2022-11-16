@@ -14,7 +14,8 @@ sudo apt-get update
 sudo apt-get -y install docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
 echo "Clonando e extraindo o projeto do bucket"
-sudo gcloud alpha storage cp gs://bucket_stargate/stargate_folder.zip ./opt/
+sudo gcloud compute project-info describe --format="value[separator='\n'](commonInstanceMetadata.STARGATE_BUCKET_NAME)" > stargate_bucket_name.txt
+sudo gcloud alpha storage cp gs://$(cat stargate_bucket_name.txt)/stargate_folder.zip ./opt
 sudo unzip /opt/stargate_folder.zip 'apache_kafka_zookeeper_docker/*' -d /opt
 cd /opt/apache_kafka_zookeeper_docker
 

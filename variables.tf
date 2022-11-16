@@ -5,7 +5,7 @@
 variable "project_id" {
   description = "Insira o ID do projeto a ser implementado o Stargate no Google Cloud Platform"
   type        = string
-  default     = "project-id-gcp"
+  default     = "raiadrogasil-280519"
 }
 
 variable "project_name" {
@@ -24,12 +24,6 @@ variable "zone" {
   description = "Insira a zona do projeto"
   type        = string
   default     = "us-central1-a"
-}
-
-variable "bucket_name" {
-  description = "Insira o nome do bucket"
-  default     = "bucket_stargate"
-  # Ao alterar esse valor, alterar também na linha 32 do arquivo start-script/fastapi_vm_startup_script.sh
 }
 
 variable "network" {
@@ -139,7 +133,7 @@ variable "kafka_log_retention_hours" {
 variable "kafka_network_tags" {
   description = "Insira a lista de tags das regras de Firewall de cada máquina de Kafka"
   type        = list
-  default     = ["http-server", "https-server", "default-allow-ssh","kafka-broker-29092-jmx-8080"]
+  default     = ["http-server", "https-server", "ssh","kafka-broker-29092-jmx-8080"]
 }
 
 variable "kafka_topic_app" {
@@ -165,13 +159,13 @@ variable "spark_name_prefix" {
 }
 
 variable "spark_master_machine_number" {
-  description = "Insira a quantidade de máquinas Master do DataProc do Spark"
+  description = "Insira a quantidade de máquinas do DataProc do Spark"
   type        = number
   default     = 1
 }
 
 variable "spark_worker_machine_number" {
-  description = "Insira a quantidade de máquinas Worker do DataProc do Spark"
+  description = "Insira a quantidade de máquinas do DataProc do Spark"
   type        = number
   default     = 2
 }
@@ -179,7 +173,10 @@ variable "spark_worker_machine_number" {
 variable "spark_machine_type" {
   description = "Insira o tipo das máquinas do DataProc do Spark"
   type        = string
-  default     = "n1-standard-2" # USD 201.43 - Mínimo PERMITIDO pela interface da GCP
+  #default     = "n1-custom-1-4096" # USD 112.02 - Job não foi enviada
+  #default     = "n1-custom-2-4096" # USD 184.77 - Job quando foi enviada, apresentou muita falha
+  default     = "n1-custom-1-6656" # USD 129.06 - Job enviada e sem erros nos testes iniciais
+  #default     = "n1-standard-2" # USD 201.43 - Mínimo PERMITIDO pela interface da GCP
   #default     = "n1-standard-4" 
 }
 
@@ -251,7 +248,7 @@ variable "load_balancing_name" {
 variable "fastapi_domain" {
   description = "Insira o domínio criado para a FastAPI sem o .com no final"
   type        = string
-  default     = "stargate-domain" 
+  default     = "stargate-rd" 
 }
 
 ######################################################
@@ -301,5 +298,5 @@ variable "test_monitoring_firewall_rule_port" {
 variable "bigquery_dataset" {
   description = "Insira o nome do dataset no Big Query"
   type        = string
-  default     = "stargate_realtime"
+  default     = "data_realtime"
 }
