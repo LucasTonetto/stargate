@@ -151,7 +151,6 @@ No modules.
 |------|-------------|------|---------|:--------:|
 | <a name="input_allowed_hosts"></a> [allowed_hosts](#input\_allowed\_hosts) | Insira aqui o(s) domínio(s) da empresa | `string` | `"['https://www.example.com', 'www.example.com']"` | yes |
 | <a name="input_bigquery_dataset"></a> [bigquery\_dataset](#input\_bigquery\_dataset) | Insira o nome do dataset no Big Query | `string` | `"stargate_realtime"` | yes |
-| <a name="input_bucket_name"></a> [bucket\_name](#input\_bucket\_name) | Insira o nome do bucket | `string` | `"bucket_stargate"` | no |
 | <a name="input_fastapi_disk_size"></a> [fastapi\_disk\_size](#input\_fastapi\_disk\_size) | Insira a capacidade de disco de cada máquina da FastAPI | `number` | `10` | no |
 | <a name="input_fastapi_disk_type"></a> [fastapi\_disk\_type](#input\_fastapi\_disk\_type) | Insira a capacidade de disco de cada máquina da FastAPI | `string` | `"pd-ssd"` | no |
 | <a name="input_fastapi_domain"></a> [fastapi\_domain](#input\_fastapi\_domain) | Insira o domínio criado para a FastAPI sem o .com no final | `string` | `"stargate-domain"` | yes |
