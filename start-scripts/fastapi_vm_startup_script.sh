@@ -30,7 +30,7 @@ sudo chmod -R 777 get_ips_and_metadata_script.sh
 ./get_ips_and_metadata_script.sh
 sudo mv /opt/fastapi_gunicorn_uvicorn_docker/app/.env.example /opt/fastapi_gunicorn_uvicorn_docker/app/.env
 sudo chmod -R 777 /opt/fastapi_gunicorn_uvicorn_docker/app/.env
-sudo gsutil cp /opt/fastapi_gunicorn_uvicorn_docker/app/.env gs://bucket_stargate
+sudo gsutil cp /opt/fastapi_gunicorn_uvicorn_docker/app/.env gs://$(cat stargate_bucket_name.txt)
 
 echo "Startando o serviço da FastAPI"
 sudo docker build -t fastapi_kafka_producer_image .
